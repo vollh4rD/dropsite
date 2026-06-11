@@ -7,9 +7,7 @@ let clipboardEntries = [];
  * Load clipboard history (RLS scopes to currentUid automatically)
  */
 async function loadClipboard() {
-
     try {
-
         const { data, error } =
             await sb
                 .from("clipboard")
@@ -20,16 +18,12 @@ async function loadClipboard() {
                     { ascending: false }
                 );
 
-        if (error)
-            throw error;
+        if (error) throw error;
 
-        clipboardEntries =
-            data || [];
-
+        clipboardEntries = data || [];
         renderClipboard();
 
     } catch (err) {
-
         console.error(err);
 
         showToast(err.message || 'clipboard load failed');
@@ -41,15 +35,10 @@ async function loadClipboard() {
  * can enforce it matches auth.jwt()->>'uid' on insert
  */
 async function saveClipboard() {
+    const value = clipInput.value.trim();
+    if (!value) return;
 
     try {
-
-        const value =
-            clipInput.value.trim();
-
-        if (!value)
-            return;
-
         const { error } =
             await sb
                 .from("clipboard")
@@ -58,19 +47,13 @@ async function saveClipboard() {
                     uid:     currentUid
                 });
 
-        if (error)
-            throw error;
+        if (error) throw error;
 
         clipInput.value = "";
-
-        await loadClipboard();
-
         showToast("saved");
 
     } catch (err) {
-
         console.error(err);
-
         showToast("save failed");
     }
 }
@@ -79,54 +62,32 @@ async function saveClipboard() {
  * Copy raw markdown source to clipboard
  */
 async function copyClip(id) {
-
-    const item =
-        clipboardEntries.find(
-            x => x.id === id
-        );
-
-    if (!item)
-        return;
+    const item = clipboardEntries.find(x => x.id === id);
+    if (!item) return;
 
     try {
-
-        await navigator.clipboard
-            .writeText(item.content);
-
+        await navigator.clipboard.writeText(item.content);
         showToast("copied");
-
     } catch (err) {
-
         console.error(err);
-
         showToast("copy failed");
     }
 }
 
-/*
- * Delete clipboard entry
- */
 async function deleteClip(id) {
-
     try {
-
         const { error } =
             await sb
                 .from("clipboard")
                 .delete()
                 .eq("id", id);
 
-        if (error)
-            throw error;
-
-        await loadClipboard();
+        if (error) throw error;
 
         showToast("deleted");
 
     } catch (err) {
-
         console.error(err);
-
         showToast("delete failed");
     }
 }
