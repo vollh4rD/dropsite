@@ -1,5 +1,3 @@
-if (sb) {
-
 const clipInput =
     document.getElementById("clipInput");
 
@@ -16,6 +14,7 @@ async function loadClipboard() {
             await sb
                 .from("clipboard")
                 .select("*")
+                .eq("uid", currentUid)
                 .order(
                     "created_at",
                     { ascending: false }
@@ -33,13 +32,13 @@ async function loadClipboard() {
 
         console.error(err);
 
-        showToast("clipboard load failed");
+        showToast(err.message || 'clipboard load failed');
     }
 }
 
 /*
- * Save clipboard entry — uid is written explicitly so Supabase
- * RLS can verify it matches auth.jwt()->>'uid' on insert
+ * Save clipboard entry — uid written explicitly so Supabase RLS
+ * can enforce it matches auth.jwt()->>'uid' on insert
  */
 async function saveClipboard() {
 
@@ -77,7 +76,7 @@ async function saveClipboard() {
 }
 
 /*
- * Copy clipboard entry (copies raw markdown source)
+ * Copy raw markdown source to clipboard
  */
 async function copyClip(id) {
 
@@ -183,17 +182,20 @@ function renderClipboard() {
         }).join("");
 }
 
-document
-.getElementById("saveClipBtn")
-.addEventListener("click", saveClipboard);
+function initClipboard() {
 
-document
-.getElementById("clearClipBtn")
-.addEventListener(
-    "click",
-    () => { clipInput.value = ""; }
-);
+    document
+        .getElementById("saveClipBtn")
+        .addEventListener("click", saveClipboard);
 
-loadClipboard();
+    document
+        .getElementById("clearClipBtn")
+        .addEventListener(
+            "click",
+            () => { clipInput.value = ""; }
+        );
 
-} // end if (sb)
+    loadClipboard();
+}
+
+if (sb) initClipboard();

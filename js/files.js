@@ -1,5 +1,3 @@
-if (sb) {
-
 let files = [];
 
 const dropZone =
@@ -28,53 +26,10 @@ function generateId() {
 }
 
 /*
- * Drag & Drop
- */
-dropZone.addEventListener(
-    "dragover",
-    e => {
-        e.preventDefault();
-        dropZone.classList.add("dragging");
-    }
-);
-
-dropZone.addEventListener(
-    "dragleave",
-    () => {
-        dropZone.classList.remove("dragging");
-    }
-);
-
-dropZone.addEventListener(
-    "drop",
-    e => {
-
-        e.preventDefault();
-
-        dropZone.classList.remove("dragging");
-
-        uploadFiles(
-            [...e.dataTransfer.files]
-        );
-    }
-);
-
-fileInput.addEventListener(
-    "change",
-    () => {
-        uploadFiles(
-            [...fileInput.files]
-        );
-    }
-);
-
-/*
  * Upload Files
- *
- * Uploads to flat storage path, then writes a row to file_registry
- * with the uid from the verified JWT. If the registry insert fails
- * (e.g. Supabase rejects the JWT signature), the storage upload is
- * rolled back.
+ * Uploads to flat storage, then registers in file_registry with uid.
+ * If the registry insert is rejected (bad JWT signature), the storage
+ * upload is rolled back.
  */
 async function uploadFiles(selectedFiles) {
 
@@ -108,7 +63,6 @@ async function uploadFiles(selectedFiles) {
                     });
 
             if (regErr) {
-                // Roll back the storage upload on registry failure
                 await sb.storage
                     .from("files")
                     .remove([storageName]);
@@ -226,6 +180,7 @@ async function loadFiles() {
             await sb
                 .from("file_registry")
                 .select("*")
+                .eq("uid", currentUid)
                 .order("created_at", { ascending: false });
 
         if (error)
@@ -238,6 +193,7 @@ async function loadFiles() {
     } catch (err) {
 
         console.error(err);
+        showToast(err.message || 'load failed');
     }
 }
 
@@ -307,7 +263,7 @@ function renderFiles() {
 }
 
 /*
- * Cleanup expired files (>2h old) for the current user
+ * Delete expired files (>2h) for the current user
  */
 async function cleanupExpiredFiles() {
 
@@ -322,6 +278,7 @@ async function cleanupExpiredFiles() {
             await sb
                 .from("file_registry")
                 .select("id, storage_name")
+                .eq("uid", currentUid)
                 .lt("created_at", twoHoursAgo);
 
         if (error)
@@ -330,17 +287,14 @@ async function cleanupExpiredFiles() {
         if (!data || !data.length)
             return;
 
-        const storageNames = data.map(f => f.storage_name);
-        const ids          = data.map(f => f.id);
-
         await sb.storage
             .from("files")
-            .remove(storageNames);
+            .remove(data.map(f => f.storage_name));
 
         await sb
             .from("file_registry")
             .delete()
-            .in("id", ids);
+            .in("id", data.map(f => f.id));
 
         console.log(
             `Deleted ${data.length} expired files`
@@ -352,7 +306,34 @@ async function cleanupExpiredFiles() {
     }
 }
 
-(async () => {
+async function initFiles() {
+
+    dropZone.addEventListener(
+        "dragover",
+        e => {
+            e.preventDefault();
+            dropZone.classList.add("dragging");
+        }
+    );
+
+    dropZone.addEventListener(
+        "dragleave",
+        () => dropZone.classList.remove("dragging")
+    );
+
+    dropZone.addEventListener(
+        "drop",
+        e => {
+            e.preventDefault();
+            dropZone.classList.remove("dragging");
+            uploadFiles([...e.dataTransfer.files]);
+        }
+    );
+
+    fileInput.addEventListener(
+        "change",
+        () => uploadFiles([...fileInput.files])
+    );
 
     const pathMatch =
         window.location.pathname.match(
@@ -391,7 +372,6 @@ async function cleanupExpiredFiles() {
             showToast("file not found");
         }
     }
+}
 
-})();
-
-} // end if (sb)
+if (sb) initFiles();
